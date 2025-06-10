@@ -1,0 +1,65 @@
+[
+    {
+        "id": "communication",
+        "title": "Overall Communication",
+        "purpose": "Check if the overall communication is clear and concise",
+        "prompt": "Given the conversation, check if the overall communication is up to the standards of a travel service. Analyze first if the agent made a no-mistake conversation, then check for standard conversation flow. Some examples to check for:\n- Detailed messages\n- Empathy if they got the wrong info the first time\n- Does not expose or asks for sensitive info to be shared on the email itself\n- Is zealous to help",
+        "is_critical": false,
+        "max_score": 3.0,
+        "category": "communication"
+    },
+    {
+        "id": "logical_itinerary",
+        "title": "Logical Itinerary",
+        "purpose": "Check if locations and time are logical in the itinerary",
+        "prompt": "Given the conversation, check if a logical itinerary was followed. If not, provide a reason why you think so",
+        "is_critical": false,
+        "max_score": 3.0,
+        "category": "PNR"
+    },
+    {
+        "id": "limo_offering",
+        "title": "Limo Offering",
+        "purpose": "Check if limo service was offered where applicable",
+        "prompt": "Given the conversation, check if limo service was offered where appropriate. If it was, check if the address and phone number was captured",
+        "is_critical": true,
+        "max_score": 5.40,
+        "category": "PNR"
+    },
+    {
+        "id": "transit_visa_advisory",
+        "title": "Transit Visa Advisory",
+        "purpose": "Check if transit visa requirements were properly advised",
+        "prompt": "Given the conversation, check if transit visa requirements were properly communicated to the customer for any layovers in their itinerary",
+        "is_critical": true,
+        "max_score": 5.40,
+        "category": "policy and service"
+    },
+    {
+        "id": "case_reference",
+        "title": "Case Number Reference",
+        "purpose": "Check if the case number reference was captured",
+        "prompt": "Given the conversation, check if the case number reference was captured atop the conversation",
+        "is_critical": false,
+        "max_score": 3.0,
+        "category": "policy and service"
+    },
+    {
+        "id": "cross_sell",
+        "title": "Cross-sell",
+        "purpose": "Check if the agent was able to cross-sell the customer",
+        "prompt": "Given the conversation, check if the agent was able to cross-sell the customer, suggesting options of other services when ONLY air request is there. Such as Hotel, Car & Insurance. Does not apply if the customer asks for it.",
+        "is_critical": false,
+        "max_score": 3.0,
+        "category": "communication"
+    },
+    {
+        "id": "accuracy",
+        "title": "Quotation Accuracy",
+        "purpose": "Check if the agent provided accurate quotations",
+        "prompt": "Given the conversation, check how well the agent was able to provide an accurate quotation",
+        "is_critical": true,
+        "max_score": 5.40,
+        "category": "communication"
+    }
+] 

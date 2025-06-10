@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite3
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Output folders
+processed_cases/
+eml-html/
+reports/ 

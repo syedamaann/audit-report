@@ -1,0 +1,28 @@
+services:
+  email-auditor:
+    # Build the Docker image from the Dockerfile in the current directory
+    build: .
+    # Name the image for easier management
+    image: email-auditor-service
+    container_name: email-auditor-container
+    
+    # Mount local directories (volumes) into the container.
+    # This allows the container to read input from and write output to your local filesystem.
+    volumes:
+      # Mount the input directory for emails
+      - ./eml-input:/app/eml-input
+      
+      # Mount the output directories to persist results on your local machine
+      - ./processed_cases:/app/processed_cases
+      - ./eml-html:/app/eml-html
+      - ./reports:/app/reports
+      
+      # Mount the log file for easier debugging
+      - ./pipeline.log:/app/pipeline.log
+      
+      # Mount your local environment file for the API key
+      - ./.env.local:/app/.env.local
+
+    # Set an environment variable to ensure Python can find the modules correctly
+    environment:
+      - PYTHONPATH=/app 
