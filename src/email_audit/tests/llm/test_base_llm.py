@@ -1,9 +1,10 @@
 import unittest
 from src.email_audit.llm.base_llm import BaseLLM
 from pydantic import BaseModel
+from typing import Optional, Union
 
 class MockLLM(BaseLLM):
-    async def ainvoke(self, prompt: str, schema: type[BaseModel] | None = None) -> BaseModel | str | None:
+    async def ainvoke(self, prompt: str, schema: Optional[type[BaseModel]] = None) -> Optional[Union[BaseModel, str]]:
         if schema:
             # Create a dummy instance of the schema if it has no required fields
             # or handle specific test schemas appropriately.

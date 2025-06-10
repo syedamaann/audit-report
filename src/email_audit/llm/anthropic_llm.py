@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Optional, Type, Any, Dict
+from typing import Optional, Type, Any, Dict, Union
 from pydantic import BaseModel, ValidationError
 from anthropic import AsyncAnthropic # Use AsyncAnthropic for asynchronous operations
 
@@ -15,7 +15,7 @@ class AnthropicLLM(BaseLLM):
             raise ValueError("Anthropic API key not found. Please set ANTHROPIC_API_KEY environment variable or pass it as an argument.")
         self.client = AsyncAnthropic(api_key=self.api_key)
 
-    async def ainvoke(self, prompt: str, schema: Optional[Type[BaseModel]] = None) -> Optional[BaseModel | str]:
+    async def ainvoke(self, prompt: str, schema: Optional[Type[BaseModel]] = None) -> Optional[Union[BaseModel, str]]:
         logger.debug(f"AnthropicLLM invoking model {self.model_name} with temperature {self.temperature}")
         try:
             system_prompt = ""
@@ -40,8 +40,8 @@ class AnthropicLLM(BaseLLM):
             messages = [{"role": "user", "content": prompt}]
 
             response = await self.client.messages.create(
-                model=self.model_name,
-                max_tokens=4096, # Recommended max_tokens for Claude 3 Opus, adjust as needed
+                model=self.model_name,  # Use the model name from the instance
+                max_tokens=4096,  # Adjusted to be within the model's limit
                 temperature=self.temperature,
                 system=system_prompt if system_prompt else None, # System prompt for structured JSON output
                 messages=messages
@@ -70,6 +70,14 @@ class AnthropicLLM(BaseLLM):
                             cleaned_json_string = cleaned_json_string[:-3]
 
                         cleaned_json_string = cleaned_json_string.strip()
+
+                        # If the response is truncated, try to complete the JSON structure
+                        if cleaned_json_string.count('{') > cleaned_json_string.count('}'):
+                            # Add missing closing braces
+                            cleaned_json_string += '}' * (cleaned_json_string.count('{') - cleaned_json_string.count('}'))
+                        elif cleaned_json_string.count('[') > cleaned_json_string.count(']'):
+                            # Add missing closing brackets
+                            cleaned_json_string += ']' * (cleaned_json_string.count('[') - cleaned_json_string.count(']'))
 
                         data = json.loads(cleaned_json_string)
                         return schema(**data)

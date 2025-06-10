@@ -28,7 +28,7 @@ class StateManager:
             json.dump(self.state, f, indent=2)
     
     def is_processed(self, eml_path: Path) -> bool:
-        """Check if a file has already been processed."""
+        """Check if a file has been processed."""
         return str(eml_path.absolute()) in self.state["processed_files"]
     
     def get_case_number(self, eml_path: Path) -> Optional[str]:

@@ -1,7 +1,7 @@
 import json
 import os
 import re # Added import re
-from typing import Optional, Type, Any, Dict
+from typing import Optional, Type, Any, Dict, Union
 from pydantic import BaseModel, ValidationError
 from openai import AsyncOpenAI # Use AsyncOpenAI for asynchronous operations
 
@@ -16,7 +16,7 @@ class OpenAILLM(BaseLLM):
             raise ValueError("OpenAI API key not found. Please set OPENAI_API_KEY environment variable or pass it as an argument.")
         self.client = AsyncOpenAI(api_key=self.api_key)
 
-    async def ainvoke(self, prompt: str, schema: Optional[Type[BaseModel]] = None) -> Optional[BaseModel | str]:
+    async def ainvoke(self, prompt: str, schema: Optional[Type[BaseModel]] = None) -> Optional[Union[BaseModel, str]]:
         logger.debug(f"OpenAILLM invoking model {self.model_name} with temperature {self.temperature}")
         try:
             messages = [{"role": "user", "content": prompt}]

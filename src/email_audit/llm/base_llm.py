@@ -1,6 +1,6 @@
 import abc
 import os
-from typing import Optional, Type
+from typing import Optional, Type, Union
 from pydantic import BaseModel
 
 class BaseLLM(abc.ABC):
@@ -18,7 +18,7 @@ class BaseLLM(abc.ABC):
         self.temperature = temperature
 
     @abc.abstractmethod
-    async def ainvoke(self, prompt: str, schema: Optional[Type[BaseModel]] = None) -> Optional[BaseModel | str]:
+    async def ainvoke(self, prompt: str, schema: Optional[Type[BaseModel]] = None) -> Optional[Union[BaseModel, str]]:
         """
         Invokes the language model with the given prompt.
 

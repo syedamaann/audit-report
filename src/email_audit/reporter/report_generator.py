@@ -4,41 +4,26 @@ import re
 from .csv_headers import AUDIT_CSV_HEADERS
 
 class ReportGenerator:
-    # Title to ID mapping for direct score extraction from detailed_results
-    # This mapping is crucial and links CSV column titles to specific audit step IDs
-    TITLE_TO_ID_MAPPING = {
-        "Logical Itinerary (Time window, Routing, Connections)": "logical_itinerary",
-        "Applied Commission as applicable (Retained / Parted)": "applied_commission",
-        "Frequent Flyer - Air & Loyalty Membership - Car, Hotels": "frequent_flyer_loyalty",
-        "Offered Limo where applicable and Ensuring complete address & phone number": "limo_service_address_phone",
-        "Preferences – Seat, Meal": "preferences_seat_meal",
-        "Transit Visa advisory": "transit_visa_advisory",
-        "PNR Documentation in P5H & Reference (Receive Field)": "pnr_documentation_p5h_reference",
-        "Captured correct Apptivo case number & used Apptivo for communication": "apptivo_case_communication", # Also used for Apptivo text field
-        "Options & class of service as per client policy": "options_class_of_service_policy",
-        "No Show / Cancellations / Changes to be advised correctly": "noshow_cancellation_changes_advice",
-        "Capture accurate reason codes (Missed/Realized) & Low Fare in the script": "reason_codes_low_fare_script",
-        "Corporate deal application for Air/Car/Hotel": "corporate_deal_application",
-        "Process accurate re-issuance (Tax code, add collect, WFRF, WFR)": "accurate_reissuance_process",
-        "Correct form of payment": "correct_form_of_payment",
-        "Client Specifics (if any) & Standard Operating Procedure related": "client_specifics_sop",
-        "DIN entry as applicable": "din_entry_applicable",
-        "Process accurate accounting line - PAC": "accurate_accounting_line_pac",
-        "Correct POS indicator & POS fee": "pos_indicator_fee",
-        "Correct Service fee selection (Air, Car, Hotel, Other)": "service_fee_selection",
-        "Overall communication in the email": "overall_email_communication",
-        "Used CWT Itinerary / Clipboard / Sabre format as per client": "cwt_itinerary_clipboard_sabre",
-        "Utilized cross sell & up sell opportunity (Hotel, Car, Insurance)": "cross_upsell_opportunity", # Also used for "Oppurtunities" score
-        "Quotation based on request (Date, Time, City Pair)": "quotation_based_on_request",
-        "Oppurtunities": "cross_upsell_opportunity", # Explicitly for "Oppurtunities" CSV column score
-    }
+    def __init__(self, audit_steps: List[Dict[str, Any]]):
+        self.TITLE_TO_ID_MAPPING = self._create_title_to_id_mapping(audit_steps)
+        self.CATEGORY_MAPPING = {
+            "PNR Fields": "PNR Fields",
+            "Client Policy and Service": "Client Policy and Service",
+            "Accounting": "Accounting",
+            "Communication": "Communication"
+        }
 
-    CATEGORY_MAPPING = {
-        "PNR Fields": "PNR",
-        "Client Policy and Service": "Client Policy", # Assuming 'Client Policy' is the category name in JSON
-        "Accounting": "Accounting",
-        "Communication": "Communication"
-    }
+    def _create_title_to_id_mapping(self, audit_steps: List[Dict[str, Any]]) -> Dict[str, str]:
+        """Dynamically creates the title-to-ID mapping from audit steps."""
+        mapping = {}
+        for step in audit_steps:
+            mapping[step['title']] = step['id']
+        # Also add the special "Oppurtunities" mapping if the corresponding step exists
+        for step in audit_steps:
+            if step['id'] == "cross_upsell_opportunity":
+                mapping["Oppurtunities"] = "cross_upsell_opportunity"
+                break
+        return mapping
 
     def generate_csv_report(self, case_number: str, email_name: str, audit_results: Dict[str, Any], timestamp: str) -> List[List[Any]]:
         rows: List[List[Any]] = [AUDIT_CSV_HEADERS]
@@ -148,7 +133,9 @@ class ReportGenerator:
             if isinstance(step, dict) and float(step.get('score', 1.0)) < 0.7:
                 improvement_text = step.get('improvements') or step.get('analysis')
                 if improvement_text: # Only add if there's something to say
-                    feedback_items.append(f"{step.get('title', 'Unknown Step')}: {improvement_text}")
+                    # Sanitize the text to prevent breaking CSV format
+                    sanitized_text = improvement_text.replace('"', "'").replace('\n', ' ').replace('\r', '')
+                    feedback_items.append(f"{step.get('title', 'Unknown Step')}: {sanitized_text}")
         data_row[header_to_index["FEEDBACK"]] = "; ".join(feedback_items) if feedback_items else ""
 
         # Ensure all data row elements are appropriately typed (string or number)

@@ -2,6 +2,8 @@ from typing import Optional
 from .base_llm import BaseLLM
 from .openai_llm import OpenAILLM
 from .anthropic_llm import AnthropicLLM
+from .grok_llm import GrokLLM
+from .groq_llm import GroqLLM
 from loguru import logger
 
 class LLMFactory:
@@ -16,14 +18,14 @@ class LLMFactory:
         Creates an instance of a language model client.
 
         Args:
-            provider: The LLM provider to use (e.g., "openai", "anthropic").
+            provider: The LLM provider to use (e.g., "openai", "anthropic", "grok", "groq").
             model_name: The specific model name to use.
             temperature: The sampling temperature for the model.
             api_key: Optional API key. If not provided, the respective
                      LLM class will attempt to load it from environment variables.
 
         Returns:
-            An instance of BaseLLM (either OpenAILLM or AnthropicLLM).
+            An instance of BaseLLM (OpenAILLM, AnthropicLLM, GrokLLM, or GroqLLM).
 
         Raises:
             ValueError: If an unsupported provider is specified.
@@ -35,9 +37,13 @@ class LLMFactory:
             return OpenAILLM(api_key=api_key, model_name=model_name, temperature=temperature)
         elif provider_lower == "anthropic":
             return AnthropicLLM(api_key=api_key, model_name=model_name, temperature=temperature)
+        elif provider_lower == "grok":
+            return GrokLLM(api_key=api_key, model_name=model_name, temperature=temperature)
+        elif provider_lower == "groq":
+            return GroqLLM(api_key=api_key, model_name=model_name, temperature=temperature)
         else:
             logger.error(f"Unsupported LLM provider: {provider}")
-            raise ValueError(f"Unsupported LLM provider: {provider}. Supported providers are 'openai' and 'anthropic'.")
+            raise ValueError(f"Unsupported LLM provider: {provider}. Supported providers are 'openai', 'anthropic', 'grok', and 'groq'.")
 
 # Example usage (optional, for testing or demonstration):
 # if __name__ == "__main__":

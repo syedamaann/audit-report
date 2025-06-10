@@ -6,7 +6,7 @@ import csv # Added import
 from datetime import datetime
 import os
 import asyncio
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
 
 from .parser.eml_parser import EMLParser
 from .auditor.email_auditor import EmailAuditor
@@ -14,7 +14,7 @@ from .reporter.report_generator import ReportGenerator
 from .utils.state_manager import StateManager
 
 # Load environment variables
-load_dotenv(find_dotenv('.env.local'))
+load_dotenv()
 
 class EmailAuditPipeline:
     def __init__(self, input_dir: str = None, html_dir: str = None, reports_dir: str = None):
@@ -30,7 +30,7 @@ class EmailAuditPipeline:
         # Initialize components
         self.parser = EMLParser()
         self.email_auditor = EmailAuditor()
-        self.reporter = ReportGenerator()
+        self.reporter = ReportGenerator(self.email_auditor.audit_steps)
         self.state_manager = StateManager()
         
         # Configure logger
@@ -79,7 +79,7 @@ class EmailAuditPipeline:
             csv_data = self.reporter.generate_csv_report(case_number, eml_path.name, audit_results, report["timestamp"]) # Added case_number
             csv_report_path = self.reports_dir / f"{eml_path.stem}_report.csv"
             with open(csv_report_path, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
+                writer = csv.writer(f, quoting=csv.QUOTE_ALL)
                 writer.writerows(csv_data)
             
             # Move files to case folder
@@ -93,9 +93,9 @@ class EmailAuditPipeline:
             
             # Clean up temporary files
             html_path.unlink()
-            report_path.unlink()
-            if csv_report_path.exists(): # Ensure it exists before trying to unlink
-                csv_report_path.unlink()
+            # report_path.unlink() # Keep the JSON report
+            # if csv_report_path.exists(): # Keep the CSV report
+            #     csv_report_path.unlink()
             
             # Prepare paths for return, ensuring csv_report is handled correctly
             returned_paths = {
