@@ -1,10 +1,12 @@
 import asyncio
 import os
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Type
 from loguru import logger
 from dotenv import load_dotenv, find_dotenv
-from langchain_openai import ChatOpenAI
+# from langchain_openai import ChatOpenAI # Removed
+from ..llm.llm_factory import LLMFactory
+from ..llm.base_llm import BaseLLM
 from bs4 import BeautifulSoup
 import json
 from datetime import datetime
@@ -43,42 +45,62 @@ class AuditReport(BaseModel):
 
 class EmailAuditor:
     def __init__(self):
-        # Get API key from environment variables
-        openai_api_key = os.getenv('OPENAI_API_KEY')
-        
-        # Debug logging
-        logger.debug(f"API Key present: {bool(openai_api_key)}")
-        logger.debug(f"API Key length: {len(openai_api_key) if openai_api_key else 0}")
-        
-        if not openai_api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment variables")
-        
-        # Initialize multiple models for different aspects of analysis
+        # Define default model names
+        DEFAULT_OPENAI_PRIMARY_MODEL = "gpt-4"
+        DEFAULT_OPENAI_REASONING_MODEL = "gpt-4"
+        DEFAULT_OPENAI_DETAIL_MODEL = "gpt-4" # Though detail_llm isn't directly used by audit_email's main flow
+        DEFAULT_ANTHROPIC_PRIMARY_MODEL = "claude-3-opus-20240229"
+        DEFAULT_ANTHROPIC_REASONING_MODEL = "claude-3-opus-20240229"
+        DEFAULT_ANTHROPIC_DETAIL_MODEL = "claude-3-opus-20240229"
+
         try:
-            logger.debug("Initializing primary_llm...")
-            self.primary_llm = ChatOpenAI(
-                model='gpt-4',
-                temperature=0.0,  # For factual analysis
-                api_key=openai_api_key
+            logger.debug("Initializing LLMs using LLMFactory...")
+
+            # Primary LLM
+            primary_llm_provider = os.getenv('PRIMARY_LLM_PROVIDER', 'openai').lower()
+            primary_llm_model_name = os.getenv(
+                f'{primary_llm_provider.upper()}_PRIMARY_MODEL',
+                DEFAULT_OPENAI_PRIMARY_MODEL if primary_llm_provider == 'openai' else DEFAULT_ANTHROPIC_PRIMARY_MODEL
             )
-            logger.debug("Initializing reasoning_llm...")
-            self.reasoning_llm = ChatOpenAI(
-                model='gpt-4',
-                temperature=0.3,  # For nuanced understanding and reasoning
-                api_key=openai_api_key
+            self.primary_llm: BaseLLM = LLMFactory.create_llm(
+                provider=primary_llm_provider,
+                model_name=primary_llm_model_name,
+                temperature=0.0
             )
-            logger.debug("Initializing detail_llm...")
-            self.detail_llm = ChatOpenAI(
-                model='gpt-4',
-                temperature=0.1,  # For detailed analysis
-                api_key=openai_api_key
+            logger.debug(f"Initialized primary_llm with {primary_llm_provider}:{primary_llm_model_name}")
+
+            # Reasoning LLM
+            reasoning_llm_provider = os.getenv('REASONING_LLM_PROVIDER', 'openai').lower()
+            reasoning_llm_model_name = os.getenv(
+                f'{reasoning_llm_provider.upper()}_REASONING_MODEL',
+                DEFAULT_OPENAI_REASONING_MODEL if reasoning_llm_provider == 'openai' else DEFAULT_ANTHROPIC_REASONING_MODEL
             )
-            logger.debug("All LLMs initialized successfully")
+            self.reasoning_llm: BaseLLM = LLMFactory.create_llm(
+                provider=reasoning_llm_provider,
+                model_name=reasoning_llm_model_name,
+                temperature=0.3
+            )
+            logger.debug(f"Initialized reasoning_llm with {reasoning_llm_provider}:{reasoning_llm_model_name}")
+
+            # Detail LLM
+            detail_llm_provider = os.getenv('DETAIL_LLM_PROVIDER', 'openai').lower()
+            detail_llm_model_name = os.getenv(
+                f'{detail_llm_provider.upper()}_DETAIL_MODEL',
+                DEFAULT_OPENAI_DETAIL_MODEL if detail_llm_provider == 'openai' else DEFAULT_ANTHROPIC_DETAIL_MODEL
+            )
+            self.detail_llm: BaseLLM = LLMFactory.create_llm( # This LLM is initialized but not used in the current audit_email flow
+                provider=detail_llm_provider,
+                model_name=detail_llm_model_name,
+                temperature=0.1
+            )
+            logger.debug(f"Initialized detail_llm with {detail_llm_provider}:{detail_llm_model_name}")
+
+            logger.debug("All LLMs initialized successfully via factory")
         except Exception as e:
-            logger.error(f"Error initializing LLMs: {str(e)}")
+            logger.error(f"Error initializing LLMs via factory: {str(e)}")
             raise
         
-        # Define audit steps
+        # self.audit_steps remains the same
         self.audit_steps = [
             # Category: PNR Fields (and similar)
             {
@@ -343,7 +365,7 @@ class EmailAuditor:
 
             # Step 2: Structure the conversation with a reliable, structured LLM call
             logger.info("Structuring conversation from raw text using a LLM...")
-            structuring_llm = self.primary_llm.with_structured_output(EmailConversation)
+            # structuring_llm = self.primary_llm.with_structured_output(EmailConversation) # Old way
             
             structuring_prompt = f"""
             Based on the raw text extracted from an email HTML file, your task is to parse it into a chronological list of email messages. Pay close attention to headers like "From:", "Sent:", "To:", "Cc:", and "Subject:". The messages are typically in reverse chronological order in the text; please return them in chronological order (oldest first).
@@ -356,7 +378,14 @@ class EmailAuditor:
             Please return the data as a JSON object conforming to the required schema.
             """
             
-            structured_data = await structuring_llm.ainvoke(structuring_prompt)
+            # structured_data = await structuring_llm.ainvoke(structuring_prompt) # Old way
+            structured_data = await self.primary_llm.ainvoke(structuring_prompt, schema=EmailConversation)
+            if not isinstance(structured_data, EmailConversation):
+                logger.error(f"Failed to get structured EmailConversation. Received type: {type(structured_data)}. Content: {structured_data}")
+                # Or, depending on how LLM client handles parsing errors (e.g., returns raw string):
+                # if isinstance(structured_data, str):
+                #     logger.error(f"Failed to parse EmailConversation. Raw response: {structured_data}")
+                raise ValueError("Could not parse email conversation structure from primary_llm.")
 
             messages = {
                 "messages": [
@@ -401,10 +430,17 @@ For each step, provide:
 4. The 'reasoning' for your score.
 5. Concrete 'improvements' if applicable.
 """
-            structured_llm = self.reasoning_llm.with_structured_output(AuditReport)
+            # structured_llm = self.reasoning_llm.with_structured_output(AuditReport) # Old way
 
             logger.info("Performing comprehensive audit with a single, structured LLM call...")
-            comprehensive_report = await structured_llm.ainvoke(analysis_task_prompt)
+            # comprehensive_report = await structured_llm.ainvoke(analysis_task_prompt) # Old way
+            comprehensive_report = await self.reasoning_llm.ainvoke(analysis_task_prompt, schema=AuditReport)
+            if not isinstance(comprehensive_report, AuditReport):
+                logger.error(f"Failed to get structured AuditReport. Received type: {type(comprehensive_report)}. Content: {comprehensive_report}")
+                # Or, if LLM client returns raw string on parsing error:
+                # if isinstance(comprehensive_report, str):
+                #    logger.error(f"Failed to parse AuditReport. Raw response: {comprehensive_report}")
+                raise ValueError("Could not parse audit report structure from reasoning_llm.")
             
             step_metadata = {step['id']: step for step in self.audit_steps}
             audit_results = []
